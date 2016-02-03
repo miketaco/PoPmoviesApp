@@ -57,6 +57,7 @@ public class MovieGridActivity extends AppCompatActivity {
 
     private  LinearLayout buttonLayout;
 
+    // ADD API KEY
     public static final String API_KEY = "";
 
     @Override
