@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+        <string-array name="sort_order">
+            <item>Most Popular</item>
+            <item>Highest Rated</item>
+            <item>Now Playing</item>
+
+        </string-array>
+
+</resources>
