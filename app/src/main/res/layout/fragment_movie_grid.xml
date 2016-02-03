@@ -71,7 +71,12 @@
                         android:text="@string/detail_rating"
                         android:textSize="14sp" />
 
-
+                    <ImageView
+                        android:id="@+id/favotireStarImageView"
+                        android:src="@drawable/outlinedstar24"
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:scaleType="fitXY" />
 
                 </LinearLayout>
             </LinearLayout>
