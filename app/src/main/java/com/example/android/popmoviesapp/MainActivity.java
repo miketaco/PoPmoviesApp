@@ -3,10 +3,13 @@ package com.example.android.popmoviesapp;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
+import android.support.v7.widget.Toolbar;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -19,6 +22,8 @@ import android.widget.GridView;
 import android.widget.ImageView;
 import android.widget.Spinner;
 
+import com.example.android.popmoviesapp.data.MovieDbHelper;
+import com.example.android.popmoviesapp.data.MovieDetailContract;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONArray;
@@ -38,7 +43,12 @@ public class MainActivity extends AppCompatActivity {
     ArrayAdapter <String>movieAdapter;
     ImageAdapter posterAdapter;
     ArrayList<String> movieIds;
-    public static final String API_KEY = "";
+    public static final String API_KEY = BuildConfig.MOVIE_DB_API_KEY;
+
+    //local db Helper
+    private MovieDbHelper dbHelper;
+
+    private String selectedSort;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -49,29 +59,43 @@ public class MainActivity extends AppCompatActivity {
 
         setContentView(R.layout.activity_main);
 
-        movieAdapter = new ArrayAdapter<String>(getApplicationContext() ,R.layout.content_main , new ArrayList<String>());
+        //set icon on toolbar
 
+        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        getSupportActionBar().setDisplayShowHomeEnabled(true);
+        getSupportActionBar().setIcon(R.mipmap.pop_launcher);
+
+        //init movie adapter
+        movieAdapter = new ArrayAdapter<String>(getApplicationContext() ,R.layout.content_main , new ArrayList<String>());
+        //init poster adapter
         posterAdapter = new ImageAdapter(this);
+        //init dbHelper
+        dbHelper = new MovieDbHelper(getApplicationContext());
+
 
         GridView gridview = (GridView) findViewById(R.id.gridview);
         gridview.setAdapter(posterAdapter);
 
         Spinner spinner = (Spinner) findViewById(R.id.movie_spinner);
-// Create an ArrayAdapter using the string array and a default spinner layout
+
+        // Create an ArrayAdapter using the string array and a default spinner layout
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(this,
                 R.array.sort_order, android.R.layout.simple_spinner_item);
-// Specify the layout to use when the list of choices appears
+        // Specify the layout to use when the list of choices appears
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-// Apply the adapter to the spinner
+        // Apply the adapter to the spinner
         spinner.setAdapter(adapter);
         //set the spinner activity
         spinner.setOnItemSelectedListener(new SpinnerActivity());
 
+        selectedSort = spinner.getSelectedItem().toString();
+
         gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v,
                                     int position, long id) {
-//                Toast.makeText(MainActivity.this, "" + movieIds.get(position),
-//                        Toast.LENGTH_SHORT).show();
+        //                Toast.makeText(MainActivity.this, "" + movieIds.get(position),
+        //                        Toast.LENGTH_SHORT).show();
 
                 Log.v(this.getClass().getSimpleName(),"movieID="+movieIds.get(position));
 
@@ -81,6 +105,19 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+
+        if(selectedSort.equals("Favorites")) {
+            setUpFavoritesFromDB();
+            posterAdapter.notifyDataSetChanged();
+        }
+        Log.v(this.getClass().getSimpleName(), "onResume selected="+selectedSort);
+    }
+
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
@@ -113,6 +150,57 @@ public class MainActivity extends AppCompatActivity {
 //        imageDownTask.execute("popularity.desc", "", null);
     }
 
+
+    /**
+     * helper method to make db read to get all favorite movies
+     * and assign values to local variable
+     */
+    private void setUpFavoritesFromDB() {
+
+        movieIds.clear();;
+        posterAdapter.clearItems();
+
+        //read the db to look for movie record
+        SQLiteDatabase db = dbHelper.getWritableDatabase();
+        String[] projection = {
+                MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE};
+
+        Cursor cursor = db.query(
+                MovieDetailContract.MovieEntry.TABLE_NAME,  // The table to query
+                null,                               // The columns to return null for all
+                MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE + "='true'",                                // The columns for the WHERE clause
+                null,                            // The values for the WHERE clause
+                null,                                     // don't group the rows
+                null,                                     // don't filter by row groups
+                null                                 // The sort order
+        );
+
+
+
+        if(cursor!=null) {
+
+            cursor.moveToFirst();
+
+            while (!cursor.isAfterLast()) {
+
+
+                Log.v(getClass().getSimpleName(),cursor.getString(cursor.getColumnIndex(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_NAME)));
+                Log.v(getClass().getSimpleName(),cursor.getString(cursor.getColumnIndex(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ID)));
+                Log.v(getClass().getSimpleName(),cursor.getString(cursor.getColumnIndex(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_IMAGE)));
+
+                movieIds.add(cursor.getString(cursor.getColumnIndex(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ID)));
+                posterAdapter.addItem(cursor.getString(cursor.getColumnIndex(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_IMAGE)));
+
+                cursor.moveToNext();
+            }
+        }
+
+        cursor.close();
+        db.close();
+
+    }
+
+
     /**
      * inner class the handle the spinner actions
      */
@@ -124,10 +212,11 @@ public class MainActivity extends AppCompatActivity {
             // parent.getItemAtPosition(pos)
             PosterImageTask imageDownTask= new PosterImageTask();
 
-            String selected = (String)parent.getItemAtPosition(pos);
-            Log.v(getClass().getSimpleName(), selected);
+            selectedSort = (String)parent.getItemAtPosition(pos);
 
-            imageDownTask.execute(selected, "", null);
+            Log.v(getClass().getSimpleName(), selectedSort);
+
+            imageDownTask.execute(selectedSort, "", null);
 
 //            if(pos==0) {
 //                imageDownTask.execute("popularity.desc", "", null);
@@ -191,7 +280,8 @@ public class MainActivity extends AppCompatActivity {
 
             Picasso.with(mContext).load(url).into(imageView);
 
-//            imageView.setImageResource(mThumbIds[position]);
+
+
             return imageView;
         }
 
@@ -228,13 +318,19 @@ public class MainActivity extends AppCompatActivity {
                 builtUri = Uri.parse("http://api.themoviedb.org/3/discover/movie?").
                         buildUpon().appendQueryParameter("sort_by", "popularity.desc")
                         .appendQueryParameter("api_key", API_KEY).build();
+            } else if(sortOrder.equals("Favorites")){
+
+                //the favorites option can read all the movie data from the db
+                setUpFavoritesFromDB();
+
+                return new String[0];
             } else {
                 builtUri = Uri.parse("http://api.themoviedb.org/3/discover/movie?").
                         buildUpon().appendQueryParameter("sort_by", "vote_count.desc")
                         .appendQueryParameter("api_key", API_KEY).build();
-
-
             }
+
+
             Log.v(getClass().getSimpleName(), builtUri.toString());
 
             try {

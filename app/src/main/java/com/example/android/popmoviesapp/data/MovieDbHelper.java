@@ -9,7 +9,7 @@ import android.database.sqlite.SQLiteOpenHelper;
  */
 public class MovieDbHelper extends SQLiteOpenHelper{
 
-    public static final int DATABASE_VERSION = 1;
+    public static final int DATABASE_VERSION = 3;
     public static final String DATABASE_NAME = "popmovie.db";
 
     // create statement for movie details
@@ -23,7 +23,7 @@ public class MovieDbHelper extends SQLiteOpenHelper{
                     MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RATING + " TEXT , " +
                     MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RUN_TIME + " TEXT , " +
                     MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE + " TEXT , " +
-                    MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_IMAGE + " TEXT )" +
+                    MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_IMAGE + " TEXT ," +
                     //create unique key to guarentee only one record per movie
                     " UNIQUE (" + MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ID
                     + ") ON CONFLICT REPLACE);";;

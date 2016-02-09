@@ -71,12 +71,11 @@
                         android:text="@string/detail_rating"
                         android:textSize="14sp" />
 
-                    <ImageView
-                        android:id="@+id/favotireStarImageView"
-                        android:src="@drawable/outlinedstar24"
-                        android:layout_width="24dp"
-                        android:layout_height="24dp"
-                        android:scaleType="fitXY" />
+                    <Button
+                        android:id="@+id/favoriteStarBtn"
+                        android:background="@drawable/outlinedstar_48"
+                        android:layout_width="48dp"
+                        android:layout_height="48dp" />
 
                 </LinearLayout>
             </LinearLayout>

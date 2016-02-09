@@ -1,12 +1,17 @@
 package com.example.android.popmoviesapp;
 
+import android.content.ActivityNotFoundException;
+import android.content.ContentValues;
 import android.content.Intent;
+import android.database.Cursor;
+import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.Toolbar;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -14,7 +19,10 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.TextView;
+import android.widget.Toast;
 
+import com.example.android.popmoviesapp.data.MovieDbHelper;
+import com.example.android.popmoviesapp.data.MovieDetailContract;
 import com.squareup.picasso.Picasso;
 
 import org.json.JSONArray;
@@ -39,7 +47,7 @@ public class MovieGridActivity extends AppCompatActivity {
     String releaseDate;
     String imageURL;
     String movieID;
-//    String videoID;
+    boolean isFavorite;
 
     String movieLength;
     List<String> movieReviews;
@@ -51,14 +59,16 @@ public class MovieGridActivity extends AppCompatActivity {
     private TextView movieRatingView;
     private ImageView moviePosterView;
     private TextView movieLengthView;
+    private Button favoriteButton;
 
     ArrayAdapter <String>reviewAdapter;
-
-
     private  LinearLayout buttonLayout;
 
+    private  MovieDbHelper dbHelper;
+    private UpdateFavoriteTask favTask;
+
     // ADD API KEY
-    public static final String API_KEY = "";
+    public static final String API_KEY = BuildConfig.MOVIE_DB_API_KEY;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -80,9 +90,13 @@ public class MovieGridActivity extends AppCompatActivity {
         movieRatingView = (TextView) findViewById(R.id.movieRating);
         moviePosterView = (ImageView)findViewById(R.id.posterImageView);
         movieLengthView = (TextView) findViewById(R.id.movieLength);
+        favoriteButton = (Button) findViewById(R.id.favoriteStarBtn);
 
         movieReviews = new ArrayList<String>();
         videoIDList = new ArrayList<String>();
+
+        dbHelper = new MovieDbHelper(getApplicationContext());
+
 
         //create array adapter
         reviewAdapter =
@@ -101,10 +115,70 @@ public class MovieGridActivity extends AppCompatActivity {
        buttonLayout = (LinearLayout)
         findViewById(R.id.trailerBtnLayout);
 
-
         //start movie task
         MovieDetailTask movieTask = new MovieDetailTask();
         movieTask.execute(movieID);
+
+
+
+        //onlick listener for the favorites button
+        favoriteButton.setOnClickListener(new View.OnClickListener() {
+            public void onClick(View v) {
+                isFavorite = !isFavorite;
+
+                favTask = new UpdateFavoriteTask();
+
+                if (isFavorite) {
+                    favoriteButton.setBackgroundResource(R.drawable.starfilled_48);
+                    favTask.execute("true");
+
+                    Toast toast = Toast.makeText(getApplicationContext(), movieTitle + " added to your favorites!", Toast.LENGTH_SHORT);
+                    toast.setGravity(Gravity.CENTER, 0, 0);
+                    toast.show();
+                } else {
+                    favoriteButton.setBackgroundResource(R.drawable.outlinedstar_48);
+                    favTask.execute("false");
+                }
+            }
+        });
+
+
+    }
+
+
+    public class UpdateFavoriteTask extends AsyncTask<String, Void, Void> {
+
+        @Override
+        protected Void doInBackground(String... params) {
+
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+
+            //create content values from the values stored from api call
+            ContentValues values = new ContentValues();
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ID, movieID);
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_NAME, movieTitle);
+
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE, params[0]);
+
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_DESCRIPTION, moviePlot);
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_IMAGE, imageURL);
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RATING, movieRating);
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RELEASE_DATE, releaseDate);
+            values.put(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RUN_TIME, movieLength);
+
+
+            // Insert the new row, returning the primary key value of the new row
+            long newRowId;
+            newRowId = db.insert(
+                    MovieDetailContract.MovieEntry.TABLE_NAME,
+                    "null",
+                    values);
+
+
+            return null;
+        }
+
+
     }
 
 
@@ -123,13 +197,17 @@ public class MovieGridActivity extends AppCompatActivity {
 
             movieID = params[0];
 
-            //build uri to call api for all movie details
-            Uri detailsBuiltUri = Uri.parse("http://api.themoviedb.org/3/movie/" + movieID + "?").buildUpon()
-                    .appendQueryParameter("api_key", API_KEY).build();
-            Log.v(getClass().getSimpleName(), detailsBuiltUri.toString());
+            //if we found the movie in db we dont need to call api
+            if(!lookUpMovieInDB(movieID)) {
 
-            JSONObject movieDetailsString = getResponseFromUri(detailsBuiltUri);
-            parseJsonString(movieDetailsString);
+                //build uri to call api for all movie details
+                Uri detailsBuiltUri = Uri.parse("http://api.themoviedb.org/3/movie/" + movieID + "?").buildUpon()
+                        .appendQueryParameter("api_key", API_KEY).build();
+
+                JSONObject movieDetailsString = getResponseFromUri(detailsBuiltUri);
+                parseJsonStringDetails(movieDetailsString);
+            }
+
 
             //buil uri for video trailer clip and parse result
             Uri builtVideoUri = Uri.parse("http://api.themoviedb.org/3/movie/" + movieID + "/videos?").buildUpon()
@@ -145,6 +223,72 @@ public class MovieGridActivity extends AppCompatActivity {
 
 
             return new String[0];
+        }
+
+
+        /**
+         * helper method to lookup the movie and take action if found.
+         */
+        private boolean lookUpMovieInDB(String id){
+            boolean isFound = false;
+
+            //read the db to look for movie record
+            SQLiteDatabase db = dbHelper.getWritableDatabase();
+            String[] projection = {
+                    MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE};
+
+            Cursor cursor = db.query(
+                    MovieDetailContract.MovieEntry.TABLE_NAME,  // The table to query
+                    null,                               // The columns to return
+                    MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ID + "=" + id,                                // The columns for the WHERE clause
+                    null,                            // The values for the WHERE clause
+                    null,                                     // don't group the rows
+                    null,                                     // don't filter by row groups
+                    null                                 // The sort order
+            );
+
+            //go to the first element of the cursor and get isFavorite column
+            if (cursor.moveToFirst()) {
+                String favoriteString = cursor.getString(
+                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE));
+
+                //we found the movie in the DB lets set the fields so we do not have to cann api
+
+
+                Log.v(getClass().getSimpleName(),"Movie found in DB loading details");
+                imageURL = cursor.getString(
+                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_IMAGE));
+                movieTitle = cursor.getString(
+                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_NAME));
+                moviePlot = cursor.getString(
+                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_DESCRIPTION));
+                movieRating =  cursor.getString(
+                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RATING));
+                releaseDate = cursor.getString(
+                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RELEASE_DATE));
+                movieLength = cursor.getString(
+                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_RUN_TIME));
+
+
+                if(favoriteString.equals("true")){
+                    isFavorite=true;
+                    isFound = true;
+
+                }
+
+                Log.v(getClass().getSimpleName(),"Read from database isFavorite = "+favoriteString);
+            }
+
+            //close cursor and db connection
+            cursor.close();
+            db.close();
+
+            //change favorite image if we found the flag set for this movie
+            if (isFavorite) {
+                favoriteButton.setBackgroundResource(R.drawable.starfilled_48);
+            }
+
+            return isFound;
         }
 
         /**
@@ -231,16 +375,58 @@ public class MovieGridActivity extends AppCompatActivity {
             movieRatingView.append(movieRating);
             movieRatingView.append(" / 10");
             movieLengthView.append(movieLength);
+            movieLengthView.append(" mins");
             moviePlotView.append(moviePlot);
 
             //set up the image view with the picassa
 
             Picasso.with(getApplicationContext()).load(imageURL).into(moviePosterView);
 
+            //read the db to look for movie record
+//            SQLiteDatabase db = dbHelper.getWritableDatabase();
+//            String[] projection = {
+//                    MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE};
+//
+//            Cursor cursor = db.query(
+//                    MovieDetailContract.MovieEntry.TABLE_NAME,  // The table to query
+//                    null,                               // The columns to return
+//                    MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ID + "=" + movieID,                                // The columns for the WHERE clause
+//                    null,                            // The values for the WHERE clause
+//                    null,                                     // don't group the rows
+//                    null,                                     // don't filter by row groups
+//                    null                                 // The sort order
+//            );
+//
+//            //go to the first element of the cursor and get isFavorite column
+//            if (cursor.moveToFirst()) {
+//                String favoriteString = cursor.getString(
+//                        cursor.getColumnIndexOrThrow(MovieDetailContract.MovieEntry.COLUMN_NAME_MOVIE_ISFAVORITE));
+//                if(favoriteString.equals("true")){
+//                    isFavorite=true;
+//                }
+//
+//                Log.v(getClass().getSimpleName(),"Read from database isFavorite = "+favoriteString);
+//            }
+//
+//            //close cursor and db connection
+//            cursor.close();
+//            db.close();
+//
+//            //change favorite image if we found the flag set for this movie
+//            if (isFavorite) {
+//                favoriteButton.setBackgroundResource(R.drawable.starfilled_48);
+//            }
+
+
             for (int i = 0; i < videoIDList.size(); i++) {
                 Button trailerButton = new Button(getApplicationContext());
 //                trailerButton.setText(R.string.trailer_button);
-                trailerButton.setText("Watch Trailer #"+ (i+1));
+                if(videoIDList.size()==1){
+                    //if there is only 1 video dont add extra text
+                    trailerButton.setText("Watch Trailer");
+                }else {
+                    trailerButton.setText("Watch Trailer #" + (i + 1));
+                }
                 trailerButton.setCompoundDrawablesWithIntrinsicBounds(0, R.drawable.play24, 0, 0);
                 trailerButton.setLayoutParams(new LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT,
                         LinearLayout.LayoutParams.WRAP_CONTENT));
@@ -308,14 +494,13 @@ public class MovieGridActivity extends AppCompatActivity {
          * parse the Json reponse add image Urls to the adapter clas
          * @param forecastJson
          */
-        private void parseJsonString(JSONObject forecastJson) {
+        private void parseJsonStringDetails(JSONObject forecastJson) {
 
             String IMAGE_PATH="http://image.tmdb.org/t/p/w185";
 
 
             //clear all the movie ids and refresh the list
             try {
-//                JSONObject forecastJson = new JSONObject(jsonResponse);
 
                 imageURL = IMAGE_PATH + forecastJson.getString("poster_path");
                 movieTitle = forecastJson.getString("original_title");
@@ -325,11 +510,11 @@ public class MovieGridActivity extends AppCompatActivity {
                 releaseDate = forecastJson.getString("release_date");
                 movieLength = forecastJson.getString("runtime");
 
-                Log.v(getClass().getSimpleName(),imageURL);
-                Log.v(getClass().getSimpleName(),movieTitle);
-                Log.v(getClass().getSimpleName(),moviePlot);
-                Log.v(getClass().getSimpleName(),movieRating);
-                Log.v(getClass().getSimpleName(),releaseDate);
+//                Log.v(getClass().getSimpleName(),imageURL);
+//                Log.v(getClass().getSimpleName(),movieTitle);
+//                Log.v(getClass().getSimpleName(),moviePlot);
+//                Log.v(getClass().getSimpleName(),movieRating);
+//                Log.v(getClass().getSimpleName(),releaseDate);
 
 
             } catch (JSONException e) {
@@ -354,7 +539,17 @@ public class MovieGridActivity extends AppCompatActivity {
             @Override
             public void onClick(View v) {
 
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.youtube.com/watch?v=" + videoID)));
+//                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.youtube.com/watch?v=" + videoID)));
+
+                //implementation to fall back on web browser if youtube not available
+                try{
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("vnd.youtube:" + videoID));
+                    startActivity(intent);
+                }catch (ActivityNotFoundException ex){
+                    Intent intent=new Intent(Intent.ACTION_VIEW,
+                            Uri.parse("http://www.youtube.com/watch?v="+videoID));
+                    startActivity(intent);
+                }
             }
         }
     }

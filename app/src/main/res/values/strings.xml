@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">PopMoviesApp</string>
+    <string name="app_name">Pop Movies App</string>
     <string name="action_settings">Settings</string>
     <string name="title_activity_movie_grid">Movie Details</string>
 
