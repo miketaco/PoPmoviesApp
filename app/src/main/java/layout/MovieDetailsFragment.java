@@ -1,4 +1,4 @@
-package com.example.android.popmoviesapp;
+package layout;
 
 import android.content.ActivityNotFoundException;
 import android.content.ContentValues;
@@ -8,11 +8,12 @@ import android.database.sqlite.SQLiteDatabase;
 import android.net.Uri;
 import android.os.AsyncTask;
 import android.os.Bundle;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
+import android.support.v4.app.Fragment;
 import android.util.Log;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -21,6 +22,8 @@ import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.example.android.popmoviesapp.BuildConfig;
+import com.example.android.popmoviesapp.R;
 import com.example.android.popmoviesapp.data.MovieDbHelper;
 import com.example.android.popmoviesapp.data.MovieDetailContract;
 import com.squareup.picasso.Picasso;
@@ -38,8 +41,17 @@ import java.net.URL;
 import java.util.ArrayList;
 import java.util.List;
 
-public class MovieGridActivity extends AppCompatActivity {
-
+/**
+ * A simple {@link Fragment} subclass.
+ * Activities that contain this fragment must implement the
+ * {@link MovieDetailsFragment.OnFragmentInteractionListener} interface
+ * to handle interaction events.
+ * Use the {@link MovieDetailsFragment#newInstance} factory method to
+ * create an instance of this fragment.
+ */
+public class MovieDetailsFragment extends Fragment {
+    // the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
+    private static final String ARG_PARAM1 = "MOVIEID";
 
     String movieTitle;
     String moviePlot;
@@ -61,65 +73,103 @@ public class MovieGridActivity extends AppCompatActivity {
     private TextView movieLengthView;
     private Button favoriteButton;
 
-    ArrayAdapter <String>reviewAdapter;
-    private  LinearLayout buttonLayout;
+    ArrayAdapter<String> reviewAdapter;
+    private LinearLayout buttonLayout;
 
-    private  MovieDbHelper dbHelper;
+    private MovieDbHelper dbHelper;
     private UpdateFavoriteTask favTask;
 
     // ADD API KEY
     public static final String API_KEY = BuildConfig.MOVIE_DB_API_KEY;
 
+
+    private OnFragmentInteractionListener mListener;
+
+    public MovieDetailsFragment() {
+        // Required empty public constructor
+    }
+
+    /**
+     * Use this factory method to create a new instance of
+     * this fragment using the provided parameters.
+     *
+     * @param param1 Parameter 1.
+     * @param param2 Parameter 2.
+     * @return A new instance of fragment MovieDetailsFragment.
+     */
+    public static MovieDetailsFragment newInstance(String param1, String param2) {
+        MovieDetailsFragment fragment = new MovieDetailsFragment();
+        Bundle args = new Bundle();
+        args.putString(ARG_PARAM1, param1);
+        fragment.setArguments(args);
+        return fragment;
+    }
+
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
+    public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (getArguments() != null) {
+            movieID = getArguments().getString(ARG_PARAM1);
+        }
 
-        setContentView(R.layout.activity_movie_grid);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
 
-        //get activity extra
-        movieID = getIntent().getStringExtra(Intent.EXTRA_TEXT);
+    }
 
+    @Override
+    public View onCreateView(LayoutInflater inflater, ViewGroup container,
+                             Bundle savedInstanceState) {
+
+        //if the app just opened there is no movie selected just show blank view
+        if(movieID==null) {
+
+            View view = new LinearLayout(getActivity());
+                   view.setBackgroundColor(getResources().getColor(R.color.background));
+
+            return view;
+        }
+
+        // Inflate the layout for this fragment
+        View rootView = inflater.inflate(R.layout.fragment_movie_details, container, false);
         Log.v(this.getClass().getSimpleName(), "movieIDExtra" + movieID);
 
 
         //assign local variables to the text views
-        movieTitleView =(TextView) findViewById(R.id.movieTitle);
-        movieReleaseView = (TextView) findViewById(R.id.movieRelease);
-        moviePlotView = (TextView) findViewById(R.id.moviePlot);
-        movieRatingView = (TextView) findViewById(R.id.movieRating);
-        moviePosterView = (ImageView)findViewById(R.id.posterImageView);
-        movieLengthView = (TextView) findViewById(R.id.movieLength);
-        favoriteButton = (Button) findViewById(R.id.favoriteStarBtn);
+        movieTitleView =(TextView) rootView.findViewById(R.id.movieTitle);
+        movieReleaseView = (TextView) rootView.findViewById(R.id.movieRelease);
+        moviePlotView = (TextView) rootView.findViewById(R.id.moviePlot);
+        movieRatingView = (TextView) rootView.findViewById(R.id.movieRating);
+        moviePosterView = (ImageView)rootView.findViewById(R.id.posterImageView);
+        movieLengthView = (TextView) rootView.findViewById(R.id.movieLength);
+        favoriteButton = (Button) rootView.findViewById(R.id.favoriteStarBtn);
 
         movieReviews = new ArrayList<String>();
         videoIDList = new ArrayList<String>();
 
-        dbHelper = new MovieDbHelper(getApplicationContext());
+        dbHelper = new MovieDbHelper(getActivity());
 
 
         //create array adapter
         reviewAdapter =
-                new ArrayAdapter<String>(this,
+                new ArrayAdapter<String>(getActivity(),
                         R.layout.review_list_item,R.id.list_item_movieReview,
                         movieReviews);
 
 
 
         //bind adapter to listview
-        ListView listView = (ListView) findViewById(R.id.listview_reviews);
-                  listView.setAdapter(reviewAdapter);
+        ListView listView = (ListView) rootView.findViewById(R.id.listview_reviews);
+        listView.setAdapter(reviewAdapter);
 //        listView.setAdapter(reviewAdapterUsers);
 
 
-       buttonLayout = (LinearLayout)
-        findViewById(R.id.trailerBtnLayout);
+        buttonLayout = (LinearLayout)
+                rootView.findViewById(R.id.trailerBtnLayout);
 
-        //start movie task
-        MovieDetailTask movieTask = new MovieDetailTask();
-        movieTask.execute(movieID);
-
+        if(movieID!=null) {
+            //start movie task
+            MovieDetailTask movieTask = new MovieDetailTask();
+            movieTask.execute(movieID);
+        }
 
 
         //onlick listener for the favorites button
@@ -133,7 +183,7 @@ public class MovieGridActivity extends AppCompatActivity {
                     favoriteButton.setBackgroundResource(R.drawable.starfilled_48);
                     favTask.execute("true");
 
-                    Toast toast = Toast.makeText(getApplicationContext(), movieTitle + " added to your favorites!", Toast.LENGTH_SHORT);
+                    Toast toast = Toast.makeText(getActivity(), movieTitle + " added to your favorites!", Toast.LENGTH_SHORT);
                     toast.setGravity(Gravity.CENTER, 0, 0);
                     toast.show();
                 } else {
@@ -144,8 +194,46 @@ public class MovieGridActivity extends AppCompatActivity {
         });
 
 
+
+        return rootView;
     }
 
+    public void onButtonPressed(Uri uri) {
+        if (mListener != null) {
+            mListener.onFragmentInteraction(uri);
+        }
+    }
+
+//    @Override
+//    public void onAttach(Context context) {
+//        super.onAttach(context);
+//        if (context instanceof OnFragmentInteractionListener) {
+//            mListener = (OnFragmentInteractionListener) context;
+//        } else {
+//            throw new RuntimeException(context.toString()
+//                    + " must implement OnFragmentInteractionListener");
+//        }
+//    }
+//
+//    @Override
+//    public void onDetach() {
+//        super.onDetach();
+//        mListener = null;
+//    }
+
+    /**
+     * This interface must be implemented by activities that contain this
+     * fragment to allow an interaction in this fragment to be communicated
+     * to the activity and potentially other fragments contained in that
+     * activity.
+     * <p/>
+     * See the Android Training lesson <a href=
+     * "http://developer.android.com/training/basics/fragments/communicating.html"
+     * >Communicating with Other Fragments</a> for more information.
+     */
+    public interface OnFragmentInteractionListener {
+        void onFragmentInteraction(Uri uri);
+    }
 
     public class UpdateFavoriteTask extends AsyncTask<String, Void, Void> {
 
@@ -181,7 +269,6 @@ public class MovieGridActivity extends AppCompatActivity {
 
 
     }
-
 
     /**
      * MovieDetailTask inner class
@@ -286,6 +373,11 @@ public class MovieGridActivity extends AppCompatActivity {
             cursor.close();
             db.close();
 
+            //change favorite image if we found the flag set for this movie
+//            if (isFavorite) {
+//                favoriteButton.setBackgroundResource(R.drawable.starfilled_48);
+//            }
+
             return isFound;
         }
 
@@ -350,9 +442,9 @@ public class MovieGridActivity extends AppCompatActivity {
             }
 
             try {
-                 jsonResp = new JSONObject(movieJsonStr);
+                jsonResp = new JSONObject(movieJsonStr);
             } catch (JSONException e) {
-            e.printStackTrace();
+                e.printStackTrace();
             }
 
 
@@ -378,15 +470,17 @@ public class MovieGridActivity extends AppCompatActivity {
 
             //set up the image view with the picassa
 
-            Picasso.with(getApplicationContext()).load(imageURL).into(moviePosterView);
+            Picasso.with(getActivity()).load(imageURL).into(moviePosterView);
 
             //change favorite image if we found the flag set for this movie
             if (isFavorite) {
                 favoriteButton.setBackgroundResource(R.drawable.starfilled_48);
             }
 
+
+
             for (int i = 0; i < videoIDList.size(); i++) {
-                Button trailerButton = new Button(getApplicationContext());
+                Button trailerButton = new Button(getActivity());
 //                trailerButton.setText(R.string.trailer_button);
                 if(videoIDList.size()==1){
                     //if there is only 1 video dont add extra text
@@ -403,7 +497,7 @@ public class MovieGridActivity extends AppCompatActivity {
                 trailerButton.setOnClickListener(clickListen);
             }
             //want to trigget the activity updates here
-     }
+        }
 
         /**
          * parse the Json reponse for the youtube trailer key
@@ -416,8 +510,8 @@ public class MovieGridActivity extends AppCompatActivity {
 
                 JSONArray resultArray =     jsonResponse.getJSONArray("results");
 
-            for(int i=0;i<resultArray.length();i++) {
-                videoIDList.add(resultArray.getJSONObject(i).getString("key"));
+                for(int i=0;i<resultArray.length();i++) {
+                    videoIDList.add(resultArray.getJSONObject(i).getString("key"));
                 }
             } catch (JSONException e) {
                 e.printStackTrace();
@@ -520,5 +614,4 @@ public class MovieGridActivity extends AppCompatActivity {
             }
         }
     }
-
 }

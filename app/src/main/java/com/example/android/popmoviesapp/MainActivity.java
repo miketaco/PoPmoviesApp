@@ -38,6 +38,8 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.ArrayList;
 
+import layout.MovieDetailsFragment;
+
 public class MainActivity extends AppCompatActivity {
 
     ArrayAdapter <String>movieAdapter;
@@ -50,6 +52,8 @@ public class MainActivity extends AppCompatActivity {
 
     private String selectedSort;
 
+    boolean mTwoPane;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
 
@@ -58,6 +62,27 @@ public class MainActivity extends AppCompatActivity {
         movieIds = new ArrayList<String>();
 
         setContentView(R.layout.activity_main);
+
+        //setup for two pane ui
+        if (findViewById(R.id.fragment) != null) {
+            // The detail container view will be present only in the large-screen layouts
+            // (res/layout-sw600dp). If this view is present, then the activity should be
+            // in two-pane mode.
+            mTwoPane = true;
+            Log.v(this.getClass().getSimpleName(),"TWO PANE FRAGMENT");
+            // In two-pane mode, show the detail view in this activity by
+            // adding or replacing the detail fragment using a
+            // fragment transaction.
+            if (savedInstanceState == null) {
+
+                Log.v(this.getClass().getSimpleName(),"REPLACE FRAGMENT");
+                getSupportFragmentManager().beginTransaction()
+                        .replace(R.id.fragment, new MovieDetailsFragment(), "DTAG")
+                        .commit();
+            }
+        } else {
+            mTwoPane = false;
+        }
 
         //set icon on toolbar
 
@@ -77,6 +102,8 @@ public class MainActivity extends AppCompatActivity {
         GridView gridview = (GridView) findViewById(R.id.gridview);
         gridview.setAdapter(posterAdapter);
 
+
+
         Spinner spinner = (Spinner) findViewById(R.id.movie_spinner);
 
         // Create an ArrayAdapter using the string array and a default spinner layout
@@ -91,6 +118,7 @@ public class MainActivity extends AppCompatActivity {
 
         selectedSort = spinner.getSelectedItem().toString();
 
+        Log.v(this.getClass().getSimpleName(),"set onclick listen");
         gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v,
                                     int position, long id) {
@@ -99,9 +127,39 @@ public class MainActivity extends AppCompatActivity {
 
                 Log.v(this.getClass().getSimpleName(),"movieID="+movieIds.get(position));
 
-                Intent intent = new Intent(parent.getContext(), MovieGridActivity.class)
-                        .putExtra(Intent.EXTRA_TEXT,  movieIds.get(position));
-                startActivity(intent);
+//                Intent intent = new Intent(parent.getContext(), MovieGridActivity.class)
+//                        .putExtra(Intent.EXTRA_TEXT,  movieIds.get(position));
+//                startActivity(intent);
+
+
+                if(mTwoPane==false){
+
+                    Intent intent = new Intent(parent.getContext(), MovieGridActivity.class)
+                            .putExtra(Intent.EXTRA_TEXT,  movieIds.get(position));
+                    startActivity(intent);
+                }
+                else {
+//                    MovieGridActivity.movieID= movieIds.get(position);
+//                    getSupportFragmentManager().beginTransaction()
+//                            .replace(R.id.fragment, new MovieGridActivityFragment(), "DTAG")
+//                            .commit();
+
+                    Log.v(this.getClass().getSimpleName(),"in two pane click");
+
+                    Bundle args = new Bundle();
+                    args.putString("MOVIEID", movieIds.get(position));
+
+                    MovieDetailsFragment fragment = new MovieDetailsFragment();
+                    fragment.setArguments(args);
+
+                    getSupportFragmentManager().beginTransaction()
+                            .replace(R.id.fragment, fragment, "DTAG")
+                            .commit();
+
+                }
+
+
+
             }
         });
     }
