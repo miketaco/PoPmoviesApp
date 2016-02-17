@@ -122,14 +122,8 @@ public class MainActivity extends AppCompatActivity {
         gridview.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             public void onItemClick(AdapterView<?> parent, View v,
                                     int position, long id) {
-        //                Toast.makeText(MainActivity.this, "" + movieIds.get(position),
-        //                        Toast.LENGTH_SHORT).show();
 
                 Log.v(this.getClass().getSimpleName(),"movieID="+movieIds.get(position));
-
-//                Intent intent = new Intent(parent.getContext(), MovieGridActivity.class)
-//                        .putExtra(Intent.EXTRA_TEXT,  movieIds.get(position));
-//                startActivity(intent);
 
 
                 if(mTwoPane==false){
@@ -139,10 +133,6 @@ public class MainActivity extends AppCompatActivity {
                     startActivity(intent);
                 }
                 else {
-//                    MovieGridActivity.movieID= movieIds.get(position);
-//                    getSupportFragmentManager().beginTransaction()
-//                            .replace(R.id.fragment, new MovieGridActivityFragment(), "DTAG")
-//                            .commit();
 
                     Log.v(this.getClass().getSimpleName(),"in two pane click");
 
@@ -155,9 +145,7 @@ public class MainActivity extends AppCompatActivity {
                     getSupportFragmentManager().beginTransaction()
                             .replace(R.id.fragment, fragment, "DTAG")
                             .commit();
-
                 }
-
 
 
             }
@@ -165,6 +153,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
+    /**
+     * implemented onResume to update list in case the favorties have changed
+     */
     @Override
     protected void onResume() {
         super.onResume();
@@ -347,7 +338,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
 
-
+    /**
+     * Async task to call api to retrieve movie list and update movie poster grid adapter
+     */
     public class PosterImageTask extends AsyncTask<String, String, String[]> {
 
         String sortOrder;

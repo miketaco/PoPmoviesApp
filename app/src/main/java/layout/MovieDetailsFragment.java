@@ -159,7 +159,6 @@ public class MovieDetailsFragment extends Fragment {
         //bind adapter to listview
         ListView listView = (ListView) rootView.findViewById(R.id.listview_reviews);
         listView.setAdapter(reviewAdapter);
-//        listView.setAdapter(reviewAdapterUsers);
 
 
         buttonLayout = (LinearLayout)
@@ -373,11 +372,6 @@ public class MovieDetailsFragment extends Fragment {
             cursor.close();
             db.close();
 
-            //change favorite image if we found the flag set for this movie
-//            if (isFavorite) {
-//                favoriteButton.setBackgroundResource(R.drawable.starfilled_48);
-//            }
-
             return isFound;
         }
 
@@ -452,6 +446,7 @@ public class MovieDetailsFragment extends Fragment {
         }
 
         /**
+         *  post execute method to set all text views to retrieved values
          *
          * @param strings
          */
@@ -585,7 +580,7 @@ public class MovieDetailsFragment extends Fragment {
         }
 
         /**
-         * inner class to handle button listener
+         * inner class to handle button listener for playing trailer intent
          */
         class trailerClickLister implements View.OnClickListener {
 
@@ -599,8 +594,6 @@ public class MovieDetailsFragment extends Fragment {
 
             @Override
             public void onClick(View v) {
-
-//                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("http://www.youtube.com/watch?v=" + videoID)));
 
                 //implementation to fall back on web browser if youtube not available
                 try{
