@@ -436,7 +436,9 @@ public class MovieDetailsFragment extends Fragment {
             }
 
             try {
-                jsonResp = new JSONObject(movieJsonStr);
+                if(movieJsonStr!=null) {
+                    jsonResp = new JSONObject(movieJsonStr);
+                }
             } catch (JSONException e) {
                 e.printStackTrace();
             }
